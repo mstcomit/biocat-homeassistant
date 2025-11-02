@@ -1,4 +1,5 @@
 """Constants for the WaterCryst BIOCAT integration."""
+from homeassistant.const import Platform
 
 DOMAIN = "watercryst"
 
@@ -15,7 +16,7 @@ MANUFACTURER = "WaterCryst Wassertechnik GmbH"
 MODEL = "BIOCAT"
 
 # Entity types
-PLATFORMS = ["sensor", "binary_sensor", "switch", "button"]
+PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.SWITCH, Platform.BUTTON]
 
 # Icons
 ICON_WATER_TEMP = "mdi:thermometer"
