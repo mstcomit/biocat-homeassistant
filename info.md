@@ -124,14 +124,14 @@ automation:
 
 ## Support
 
-- **Integration Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/biocat/issues)
+- **Integration Issues**: [GitHub Issues](https://github.com/mstcomit/biocat/issues)
 - **WaterCryst Device Support**: appservice@watercryst.com
-- **Documentation**: [Full README](https://github.com/YOUR_USERNAME/biocat/blob/main/README.md)
+- **Documentation**: [Full README](https://github.com/mstcomit/biocat/blob/main/README.md)
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/YOUR_USERNAME/biocat.svg?style=for-the-badge
-[commits]: https://github.com/YOUR_USERNAME/biocat/commits/main
+[commits-shield]: https://img.shields.io/github/commit-activity/y/mstcomit/biocat.svg?style=for-the-badge
+[commits]: https://github.com/mstcomit/biocat/commits/main
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
-[license-shield]: https://img.shields.io/github/license/YOUR_USERNAME/biocat.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/YOUR_USERNAME/biocat.svg?style=for-the-badge
-[releases]: https://github.com/YOUR_USERNAME/biocat/releases
+[license-shield]: https://img.shields.io/github/license/mstcomit/biocat.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/mstcomit/biocat.svg?style=for-the-badge
+[releases]: https://github.com/mstcomit/biocat/releases

@@ -19,7 +19,7 @@ Until this integration is added to the default HACS repository:
 3. Click the **⋮** (three dots) menu in the top right corner
 4. Select **Custom repositories**
 5. Add the following information:
-   - **Repository**: `https://github.com/YOUR_USERNAME/biocat`
+   - **Repository**: `https://github.com/mstcomit/biocat`
    - **Category**: `Integration`
 6. Click **Add**
 
@@ -96,7 +96,7 @@ HACS will automatically notify you when updates are available:
 
 ## Getting Help
 
-- **Integration Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/biocat/issues)
+- **Integration Issues**: [GitHub Issues](https://github.com/mstcomit/biocat/issues)
 - **HACS Support**: [HACS Documentation](https://hacs.xyz/)
 - **Home Assistant Community**: [Community Forum](https://community.home-assistant.io/)
 - **WaterCryst Device Support**: appservice@watercryst.com
