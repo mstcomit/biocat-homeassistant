@@ -42,7 +42,7 @@ A comprehensive Home Assistant integration for WaterCryst BIOCAT water treatment
 1. Ensure you have [HACS](https://hacs.xyz/) installed and configured
 2. In the HACS panel, go to **Integrations**
 3. Click the **⋮** menu in the top right corner and select **Custom repositories**
-4. Add this repository URL: `https://github.com/mstcomit/biocat`
+4. Add this repository URL: `https://github.com/mstcomit/biocat-homeassistant`
 5. Select **Integration** as the category
 6. Click **Add**
 7. Find "WaterCryst BIOCAT" in the list and click **Install**
@@ -312,12 +312,12 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ***
 
-[releases-shield]: https://img.shields.io/github/release/mstcomit/biocat.svg?style=for-the-badge
-[releases]: https://github.com/mstcomit/biocat/releases
-[commits-shield]: https://img.shields.io/github/commit-activity/y/mstcomit/biocat.svg?style=for-the-badge
-[commits]: https://github.com/mstcomit/biocat/commits/main
+[releases-shield]: https://img.shields.io/github/release/mstcomit/biocat-homeassistant.svg?style=for-the-badge
+[releases]: https://github.com/mstcomit/biocat-homeassistant/releases
+[commits-shield]: https://img.shields.io/github/commit-activity/y/mstcomit/biocat-homeassistant.svg?style=for-the-badge
+[commits]: https://github.com/mstcomit/biocat-homeassistant/commits/main
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
 [forum]: https://community.home-assistant.io/
-[license-shield]: https://img.shields.io/github/license/mstcomit/biocat.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/mstcomit/biocat-homeassistant.svg?style=for-the-badge
