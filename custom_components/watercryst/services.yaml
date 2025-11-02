@@ -1,0 +1,21 @@
+pause_leakage_protection:
+  name: Pause Leakage Protection
+  description: Pause leakage protection for a specified number of minutes
+  fields:
+    entity_id:
+      name: Entity ID
+      description: The WaterCryst device entity
+      required: true
+      selector:
+        entity:
+          domain: watercryst
+    minutes:
+      name: Minutes
+      description: Number of minutes to pause leakage protection (1-4320)
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 4320
+          step: 1
+          mode: box

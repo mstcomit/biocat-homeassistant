@@ -1,0 +1,187 @@
+# Example Home Assistant configuration for WaterCryst BIOCAT integration
+
+# The integration is configured through the UI, but here are some example
+# automations and configurations you can add to your configuration.yaml
+
+# Example automations
+automation:
+  # Enable absence mode when alarm is set
+  - alias: "BIOCAT - Enable Absence Mode on Away"
+    trigger:
+      - platform: state
+        entity_id: alarm_control_panel.home
+        to: "armed_away"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.biocat_online
+        state: "on"
+    action:
+      - service: switch.turn_on
+        entity_id: switch.biocat_absence_mode
+      - service: notify.mobile_app
+        data:
+          title: "BIOCAT Absence Mode"
+          message: "Absence mode enabled - enhanced leak detection active"
+
+  # Disable absence mode when returning home
+  - alias: "BIOCAT - Disable Absence Mode on Return"
+    trigger:
+      - platform: state
+        entity_id: alarm_control_panel.home
+        to: "disarmed"
+    condition:
+      - condition: state
+        entity_id: switch.biocat_absence_mode
+        state: "on"
+    action:
+      - service: switch.turn_off
+        entity_id: switch.biocat_absence_mode
+
+  # Water leak emergency alert
+  - alias: "BIOCAT - Water Leak Emergency"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.biocat_microleakage_detected
+        to: "on"
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "🚨 Water Leak Detected!"
+          message: "Microleakage detected by BIOCAT system"
+          data:
+            priority: high
+            actions:
+              - action: "CLOSE_WATER"
+                title: "Close Water Supply"
+      - service: switch.turn_off
+        entity_id: switch.biocat_water_supply
+
+  # Device error alert
+  - alias: "BIOCAT - Device Error Alert"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.biocat_error
+        to: "on"
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "BIOCAT Error"
+          message: >
+            Error: {{ state_attr('sensor.biocat_event_title', 'title') }}
+            {{ state_attr('sensor.biocat_event_description', 'description') }}
+
+  # Daily consumption report
+  - alias: "BIOCAT - Daily Consumption Report"
+    trigger:
+      - platform: time
+        at: "22:00:00"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.biocat_online
+        state: "on"
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "Daily Water Usage"
+          message: >
+            Today: {{ states('sensor.biocat_daily_consumption') | round(1) }} L
+            Total: {{ states('sensor.biocat_total_consumption') | round(1) }} L
+
+  # Weekly self-test
+  - alias: "BIOCAT - Weekly Self Test"
+    trigger:
+      - platform: time
+        at: "02:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - sun
+      - condition: state
+        entity_id: binary_sensor.biocat_online
+        state: "on"
+      - condition: template
+        value_template: "{{ states('sensor.biocat_mode') == 'Water Treatment' }}"
+    action:
+      - service: button.press
+        entity_id: button.biocat_self_test
+
+# Example sensors for additional calculations
+sensor:
+  # Calculate weekly consumption
+  - platform: statistics
+    name: "BIOCAT Weekly Consumption"
+    entity_id: sensor.biocat_daily_consumption
+    state_characteristic: sum
+    max_age:
+      days: 7
+
+  # Calculate average daily consumption
+  - platform: statistics
+    name: "BIOCAT Average Daily Consumption"
+    entity_id: sensor.biocat_daily_consumption
+    state_characteristic: mean
+    max_age:
+      days: 30
+
+# Example utility meter for monthly tracking
+utility_meter:
+  biocat_monthly_consumption:
+    source: sensor.biocat_total_consumption
+    cycle: monthly
+
+# Example binary sensor for high consumption alert
+binary_sensor:
+  - platform: threshold
+    name: "BIOCAT High Daily Consumption"
+    entity_id: sensor.biocat_daily_consumption
+    threshold: 300  # Alert if daily consumption exceeds 300L
+
+# Example input for manual leakage protection pause
+input_number:
+  biocat_pause_minutes:
+    name: "BIOCAT Pause Duration"
+    min: 1
+    max: 4320
+    step: 15
+    initial: 60
+    unit_of_measurement: "minutes"
+    icon: mdi:timer
+
+# Example script for custom leakage protection pause
+script:
+  biocat_pause_leakage_protection:
+    alias: "Pause BIOCAT Leakage Protection"
+    sequence:
+      - service: watercryst.pause_leakage_protection
+        data:
+          entity_id: sensor.biocat_mode
+          minutes: "{{ states('input_number.biocat_pause_minutes') | int }}"
+
+# Example dashboard card configuration (for Lovelace UI)
+# Add this to your dashboard YAML or use the UI editor
+
+# type: entities
+# entities:
+#   - entity: binary_sensor.biocat_online
+#     name: "Device Status"
+#   - entity: sensor.biocat_mode
+#     name: "Operation Mode"
+#   - entity: sensor.biocat_water_temperature
+#     name: "Water Temperature"
+#   - entity: sensor.biocat_pressure
+#     name: "Water Pressure"
+#   - entity: sensor.biocat_flow_rate
+#     name: "Flow Rate"
+#   - entity: sensor.biocat_daily_consumption
+#     name: "Today's Usage"
+#   - entity: switch.biocat_absence_mode
+#     name: "Absence Mode"
+#   - entity: switch.biocat_water_supply
+#     name: "Water Supply"
+#   - type: divider
+#   - entity: button.biocat_self_test
+#     name: "Run Self Test"
+#   - entity: button.biocat_microleakage_test
+#     name: "Check for Leaks"
+# title: "BIOCAT Water System"
+# show_header_toggle: false
