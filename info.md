@@ -124,14 +124,14 @@ automation:
 
 ## Support
 
-- **Integration Issues**: [GitHub Issues](https://github.com/mstcomit/biocat/issues)
+- **Integration Issues**: [GitHub Issues](https://github.com/mstcomit/biocat-homeassistant/issues)
 - **WaterCryst Device Support**: appservice@watercryst.com
-- **Documentation**: [Full README](https://github.com/mstcomit/biocat/blob/main/README.md)
+- **Documentation**: [Full README](https://github.com/mstcomit/biocat-homeassistant/blob/main/README.md)
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/mstcomit/biocat.svg?style=for-the-badge
-[commits]: https://github.com/mstcomit/biocat/commits/main
+[commits-shield]: https://img.shields.io/github/commit-activity/y/mstcomit/biocat-homeassistant.svg?style=for-the-badge
+[commits]: https://github.com/mstcomit/biocat-homeassistant/commits/main
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
-[license-shield]: https://img.shields.io/github/license/mstcomit/biocat.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/mstcomit/biocat.svg?style=for-the-badge
-[releases]: https://github.com/mstcomit/biocat/releases
+[license-shield]: https://img.shields.io/github/license/mstcomit/biocat-homeassistant.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/mstcomit/biocat-homeassistant.svg?style=for-the-badge
+[releases]: https://github.com/mstcomit/biocat-homeassistant/releases

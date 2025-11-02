@@ -6,6 +6,10 @@
 [![hacs][hacsbadge]][hacs]
 [![Community Forum][forum-shield]][forum]
 
+**_Click the button below to easily add this integration to your Home Assistant HACS installation:_**
+
+[![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mstcomit&repository=biocat-homeassistant&category=integration)
+
 A comprehensive Home Assistant integration for WaterCryst BIOCAT water treatment and leakage protection systems. This integration provides complete control and monitoring of your BIOCAT device through the WaterCryst REST API.
 
 ## Features

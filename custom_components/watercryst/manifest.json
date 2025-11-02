@@ -4,9 +4,9 @@
   "codeowners": ["@mstcomit"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/mstcomit/biocat",
+  "documentation": "https://github.com/mstcomit/biocat-homeassistant",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/mstcomit/biocat/issues",
+  "issue_tracker": "https://github.com/mstcomit/biocat-homeassistant/issues",
   "requirements": ["aiohttp>=3.8.0"],
   "version": "0.1.0"
 }
