@@ -38,15 +38,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     measurements_coordinator = WaterCrystMeasurementsCoordinator(hass, client)
 
     # Fetch initial data so we have data when entities subscribe
-    _LOGGER.debug("Performing initial data refresh")
-    try:
-        await state_coordinator.async_config_entry_first_refresh()
-        _LOGGER.debug("State coordinator first refresh completed")
-        await measurements_coordinator.async_config_entry_first_refresh()
-        _LOGGER.debug("Measurements coordinator first refresh completed")
-    except UpdateFailed as err:
-        _LOGGER.error("Initial data refresh failed: %s", err)
-        raise ConfigEntryNotReady from err
+    # Use exponential backoff for resilient setup
+    _LOGGER.debug("Performing initial data refresh with retry logic")
+    
+    max_setup_retries = 3
+    base_delay = 2  # seconds
+    
+    for attempt in range(max_setup_retries):
+        try:
+            _LOGGER.debug("Setup attempt %d/%d", attempt + 1, max_setup_retries)
+            
+            # Try state coordinator first
+            await state_coordinator.async_config_entry_first_refresh()
+            _LOGGER.debug("State coordinator first refresh completed")
+            
+            # Try measurements coordinator
+            try:
+                await measurements_coordinator.async_config_entry_first_refresh()
+                _LOGGER.debug("Measurements coordinator first refresh completed")
+            except UpdateFailed as err:
+                # Measurements might not be available on all devices
+                if "empty response" in str(err).lower() or "not supported" in str(err).lower():
+                    _LOGGER.warning("Measurements coordinator failed (device may not support this): %s", err)
+                    # Continue setup without measurements for now
+                else:
+                    raise
+            
+            # If we get here, setup was successful
+            break
+            
+        except UpdateFailed as err:
+            if attempt < max_setup_retries - 1:
+                delay = base_delay * (2 ** attempt)  # Exponential backoff
+                _LOGGER.warning(
+                    "Initial data refresh failed on attempt %d/%d: %s - retrying in %d seconds", 
+                    attempt + 1, max_setup_retries, err, delay
+                )
+                await asyncio.sleep(delay)
+            else:
+                _LOGGER.error("Initial data refresh failed after %d attempts: %s", max_setup_retries, err)
+                raise ConfigEntryNotReady from err
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -119,6 +150,14 @@ class WaterCrystStateCoordinator(DataUpdateCoordinator):
         except WaterCrystConnectionError as err:
             _LOGGER.error("Error communicating with WaterCryst API: %s", err)
             raise UpdateFailed(f"Error communicating with API: {err}") from err
+        except WaterCrystAPIError as err:
+            # For setup phase, treat API errors as potentially transient
+            if "empty response" in str(err).lower():
+                _LOGGER.warning("Empty response from API, this may be transient: %s", err)
+                raise UpdateFailed(f"API returned empty response (may be transient): {err}") from err
+            else:
+                _LOGGER.error("API error during state fetch: %s", err)
+                raise UpdateFailed(f"API error: {err}") from err
         except Exception as err:
             _LOGGER.error("Unexpected error in state coordinator: %s", err)
             raise UpdateFailed(f"Unexpected error: {err}") from err
@@ -148,6 +187,14 @@ class WaterCrystMeasurementsCoordinator(DataUpdateCoordinator):
         except WaterCrystConnectionError as err:
             _LOGGER.error("Error communicating with WaterCryst API (measurements): %s", err)
             raise UpdateFailed(f"Error communicating with API: {err}") from err
+        except WaterCrystAPIError as err:
+            # For setup phase, treat API errors as potentially transient
+            if "empty response" in str(err).lower():
+                _LOGGER.warning("Empty response from measurements API, this may be transient: %s", err)
+                raise UpdateFailed(f"Measurements API returned empty response (may be transient): {err}") from err
+            else:
+                _LOGGER.error("API error during measurements fetch: %s", err)
+                raise UpdateFailed(f"Measurements API error: {err}") from err
         except Exception as err:
             _LOGGER.error("Unexpected error in measurements coordinator: %s", err)
             raise UpdateFailed(f"Unexpected error: {err}") from err

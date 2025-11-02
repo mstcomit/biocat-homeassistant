@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Union
@@ -55,72 +56,196 @@ class WaterCrystClient:
         if self._session and self._close_session:
             await self._session.close()
 
-    async def _request(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Make a request to the WaterCryst API."""
+    async def _request(self, endpoint: str, params: Optional[Dict[str, Any]] = None, max_retries: int = 3) -> Dict[str, Any]:
+        """Make a request to the WaterCryst API with retry logic for empty responses."""
         session = await self._get_session()
         url = f"{API_BASE_URL}/{endpoint.lstrip('/')}"
         
         # Always include the API key header, even when using an external session
         headers = {"X-API-KEY": self._api_key}
         
-        try:
-            async with session.get(url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    # Check if response has content
-                    content_length = response.headers.get('content-length', '0')
-                    if content_length == '0' or not response.content_length:
-                        raise WaterCrystAPIError(f"API endpoint {endpoint} returned empty response")
-                    
-                    content_type = response.headers.get('content-type', '')
-                    if 'application/json' not in content_type:
+        last_exception = None
+        
+        for attempt in range(max_retries):
+            try:
+                async with session.get(url, params=params, headers=headers) as response:
+                    if response.status == 200:
+                        # Get response details for debugging
+                        content_length = response.headers.get('content-length')
+                        content_type = response.headers.get('content-type', '')
+                        
+                        # Read the response text first to check if it's actually empty
                         text = await response.text()
-                        raise WaterCrystAPIError(f"API endpoint {endpoint} returned non-JSON response: {text}")
+                        
+                        # Log detailed information for debugging
+                        _LOGGER.debug(
+                            "API response for %s: status=%d, content_length=%s, content_type=%s, text_length=%d, attempt=%d", 
+                            endpoint, response.status, content_length, content_type, len(text), attempt + 1
+                        )
+                        
+                        # Check if response is truly empty
+                        if not text or text.strip() == "":
+                            error_msg = f"API endpoint {endpoint} returned empty response (attempt {attempt + 1}/{max_retries})"
+                            if attempt < max_retries - 1:
+                                _LOGGER.warning("%s - retrying in 2 seconds", error_msg)
+                                await asyncio.sleep(2)
+                                continue
+                            else:
+                                raise WaterCrystAPIError(f"{error_msg} - all retries exhausted")
+                        
+                        # Check content type for JSON endpoints
+                        if 'application/json' in content_type:
+                            try:
+                                return json.loads(text)
+                            except json.JSONDecodeError as e:
+                                error_msg = f"API endpoint {endpoint} returned invalid JSON: {text[:200]}"
+                                if attempt < max_retries - 1:
+                                    _LOGGER.warning("%s - retrying in 2 seconds", error_msg)
+                                    await asyncio.sleep(2)
+                                    continue
+                                else:
+                                    raise WaterCrystAPIError(f"{error_msg} - JSON decode error: {e}")
+                        else:
+                            # For non-JSON responses, check if they look like error messages
+                            if text.lower().startswith('error') or text.lower().startswith('<!doctype'):
+                                error_msg = f"API endpoint {endpoint} returned error response: {text[:200]}"
+                                if attempt < max_retries - 1:
+                                    _LOGGER.warning("%s - retrying in 2 seconds", error_msg)
+                                    await asyncio.sleep(2)
+                                    continue
+                                else:
+                                    raise WaterCrystAPIError(error_msg)
+                            
+                            # Try to parse as JSON anyway (some endpoints may not set correct content-type)
+                            try:
+                                return json.loads(text)
+                            except json.JSONDecodeError:
+                                # If it's not JSON, return the raw text
+                                return {"raw_response": text}
                     
-                    return await response.json()
-                elif response.status == 401:
-                    raise WaterCrystAuthenticationError("Invalid API key")
-                elif response.status == 403:
-                    raise WaterCrystAPIError("API endpoint is disabled")
-                elif response.status == 429:
-                    raise WaterCrystRateLimitError("API rate limit exceeded")
-                elif response.status == 400:
-                    raise WaterCrystAPIError("Operation not supported")
+                    elif response.status == 401:
+                        raise WaterCrystAuthenticationError("Invalid API key")
+                    elif response.status == 403:
+                        raise WaterCrystAPIError("API endpoint is disabled")
+                    elif response.status == 429:
+                        raise WaterCrystRateLimitError("API rate limit exceeded")
+                    elif response.status == 400:
+                        raise WaterCrystAPIError("Operation not supported")
+                    else:
+                        text = await response.text()
+                        error_msg = f"API request failed with status {response.status}: {text}"
+                        if attempt < max_retries - 1 and response.status >= 500:
+                            _LOGGER.warning("%s - retrying in 2 seconds", error_msg)
+                            await asyncio.sleep(2)
+                            continue
+                        else:
+                            raise WaterCrystAPIError(error_msg)
+                            
+            except ClientError as err:
+                last_exception = WaterCrystConnectionError(f"Connection error: {err}")
+                if attempt < max_retries - 1:
+                    _LOGGER.warning("Connection error on attempt %d/%d: %s - retrying in 2 seconds", attempt + 1, max_retries, err)
+                    await asyncio.sleep(2)
+                    continue
                 else:
-                    text = await response.text()
-                    raise WaterCrystAPIError(f"API request failed with status {response.status}: {text}")
-        except ClientError as err:
-            raise WaterCrystConnectionError(f"Connection error: {err}") from err
+                    raise last_exception from err
+            except WaterCrystAPIError:
+                # Don't retry API errors (except the ones we handled above)
+                raise
+            except Exception as err:
+                last_exception = WaterCrystAPIError(f"Unexpected error: {err}")
+                if attempt < max_retries - 1:
+                    _LOGGER.warning("Unexpected error on attempt %d/%d: %s - retrying in 2 seconds", attempt + 1, max_retries, err)
+                    await asyncio.sleep(2)
+                    continue
+                else:
+                    raise last_exception from err
+        
+        # This should never be reached, but just in case
+        if last_exception:
+            raise last_exception
+        raise WaterCrystAPIError(f"Request to {endpoint} failed after {max_retries} attempts")
 
-    async def _request_raw(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Union[str, float]:
-        """Make a request to the WaterCryst API expecting raw text/number response."""
+    async def _request_raw(self, endpoint: str, params: Optional[Dict[str, Any]] = None, max_retries: int = 3) -> Union[str, float]:
+        """Make a request to the WaterCryst API expecting raw text/number response with retry logic."""
         session = await self._get_session()
         url = f"{API_BASE_URL}/{endpoint.lstrip('/')}"
         
         # Always include the API key header, even when using an external session
         headers = {"X-API-KEY": self._api_key}
         
-        try:
-            async with session.get(url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    text = await response.text()
-                    # Try to convert to float if it's a number
-                    try:
-                        return float(text.strip())
-                    except ValueError:
-                        return text.strip()
-                elif response.status == 401:
-                    raise WaterCrystAuthenticationError("Invalid API key")
-                elif response.status == 403:
-                    raise WaterCrystAPIError("API endpoint is disabled")
-                elif response.status == 429:
-                    raise WaterCrystRateLimitError("API rate limit exceeded")
-                elif response.status == 400:
-                    raise WaterCrystAPIError("Operation not supported")
+        last_exception = None
+        
+        for attempt in range(max_retries):
+            try:
+                async with session.get(url, params=params, headers=headers) as response:
+                    if response.status == 200:
+                        text = await response.text()
+                        
+                        _LOGGER.debug(
+                            "API raw response for %s: status=%d, text_length=%d, text='%s', attempt=%d", 
+                            endpoint, response.status, len(text), text[:100], attempt + 1
+                        )
+                        
+                        # Check if response is empty
+                        if not text or text.strip() == "":
+                            error_msg = f"API endpoint {endpoint} returned empty response (attempt {attempt + 1}/{max_retries})"
+                            if attempt < max_retries - 1:
+                                _LOGGER.warning("%s - retrying in 2 seconds", error_msg)
+                                await asyncio.sleep(2)
+                                continue
+                            else:
+                                raise WaterCrystAPIError(f"{error_msg} - all retries exhausted")
+                        
+                        # Try to convert to float if it's a number
+                        text = text.strip()
+                        try:
+                            return float(text)
+                        except ValueError:
+                            return text
+                            
+                    elif response.status == 401:
+                        raise WaterCrystAuthenticationError("Invalid API key")
+                    elif response.status == 403:
+                        raise WaterCrystAPIError("API endpoint is disabled")
+                    elif response.status == 429:
+                        raise WaterCrystRateLimitError("API rate limit exceeded")
+                    elif response.status == 400:
+                        raise WaterCrystAPIError("Operation not supported")
+                    else:
+                        text = await response.text()
+                        error_msg = f"API request failed with status {response.status}: {text}"
+                        if attempt < max_retries - 1 and response.status >= 500:
+                            _LOGGER.warning("%s - retrying in 2 seconds", error_msg)
+                            await asyncio.sleep(2)
+                            continue
+                        else:
+                            raise WaterCrystAPIError(error_msg)
+                            
+            except ClientError as err:
+                last_exception = WaterCrystConnectionError(f"Connection error: {err}")
+                if attempt < max_retries - 1:
+                    _LOGGER.warning("Connection error on attempt %d/%d: %s - retrying in 2 seconds", attempt + 1, max_retries, err)
+                    await asyncio.sleep(2)
+                    continue
                 else:
-                    text = await response.text()
-                    raise WaterCrystAPIError(f"API request failed with status {response.status}: {text}")
-        except ClientError as err:
-            raise WaterCrystConnectionError(f"Connection error: {err}") from err
+                    raise last_exception from err
+            except WaterCrystAPIError:
+                # Don't retry API errors (except the ones we handled above)
+                raise
+            except Exception as err:
+                last_exception = WaterCrystAPIError(f"Unexpected error: {err}")
+                if attempt < max_retries - 1:
+                    _LOGGER.warning("Unexpected error on attempt %d/%d: %s - retrying in 2 seconds", attempt + 1, max_retries, err)
+                    await asyncio.sleep(2)
+                    continue
+                else:
+                    raise last_exception from err
+        
+        # This should never be reached, but just in case
+        if last_exception:
+            raise last_exception
+        raise WaterCrystAPIError(f"Raw request to {endpoint} failed after {max_retries} attempts")
 
     # State and measurements
     async def get_state(self) -> Dict[str, Any]:

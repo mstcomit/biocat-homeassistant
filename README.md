@@ -262,25 +262,65 @@ automation:
 
 ### Common Issues
 
-1. **API Key Authentication Failed**
+1. **"API endpoint state returned empty response" Error**
+   - **What it means**: The API returned a 200 OK status but with no content
+   - **Likely causes**: 
+     - Device temporarily busy or starting up
+     - API server temporarily overloaded
+     - Network connectivity issues
+   - **Solutions**:
+     - Wait 2-3 minutes and try adding the integration again
+     - Restart your BIOCAT device and wait for it to fully boot
+     - Use the diagnostic script: `./quick_fix.sh YOUR_API_KEY`
+     - The integration now has built-in retry logic to handle transient issues
+     - Check device logs in WaterCryst app for any errors
+
+2. **API Key Authentication Failed**
    - Verify your API key is correct
    - Ensure the key was generated from https://app.watercryst.com/
    - Check that the API endpoint is enabled for your device
 
-2. **Device Shows Offline**
+3. **Device Shows Offline**
    - Check your device's internet connection
    - Verify the device is powered on
    - Confirm the device is properly registered in your WaterCryst account
 
-3. **Missing Consumption Data**
+4. **Missing Consumption Data**
    - Consumption data is only available on newer firmware versions
    - KLS-C and KS-C devices need firmware v01.03.01+
    - LS-C devices need firmware v01.00.08+
 
-4. **Rate Limit Errors**
+5. **Rate Limit Errors**
    - The API has limits: 10 requests/second, 200 requests/15 minutes
    - Reduce update frequency if experiencing rate limits
    - Multiple Home Assistant instances with same API key can cause issues
+
+### Diagnostic Tools
+
+This integration includes diagnostic tools to help troubleshoot API issues:
+
+1. **Quick Fix Script**: `./quick_fix.sh YOUR_API_KEY`
+   - Basic connectivity and API testing
+   - Identifies empty response issues
+   - Provides immediate feedback
+
+2. **Detailed Debug Script**: `python3 debug_empty_response.py YOUR_API_KEY`
+   - Comprehensive API endpoint testing
+   - Retry mechanism testing
+   - Detailed response analysis
+
+3. **Built-in Retry Logic**: 
+   - The integration now automatically retries failed requests up to 3 times
+   - Uses exponential backoff (2, 4, 8 seconds) for network issues
+   - Handles empty responses gracefully during setup
+
+### Version 1.1.0+ Improvements
+
+- **Enhanced Error Handling**: Better detection and handling of empty API responses
+- **Retry Logic**: Automatic retries for transient issues with exponential backoff
+- **Improved Logging**: More detailed debug information for troubleshooting
+- **Resilient Setup**: Setup continues even if measurements endpoint fails
+- **Graceful Degradation**: Integration works with partial data when some endpoints fail
 
 ### API Limitations
 
