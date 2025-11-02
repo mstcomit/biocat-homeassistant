@@ -141,16 +141,9 @@ class WaterCrystMeasurementsCoordinator(DataUpdateCoordinator):
         """Fetch measurements data from API endpoint."""
         try:
             _LOGGER.debug("Fetching measurements data from WaterCryst API")
-            # Try direct measurements first (newer devices)
-            try:
-                measurements = await self.client.get_measurements_direct()
-                _LOGGER.debug("Successfully fetched direct measurements: %s", measurements)
-            except WaterCrystAPIError as err:
-                # Fallback to webhook-based measurements for older devices
-                _LOGGER.debug("Direct measurements failed (%s), trying legacy endpoint", err)
-                measurements = await self.client.get_measurements_now()
-                _LOGGER.debug("Successfully fetched legacy measurements: %s", measurements)
-
+            # Use direct measurements endpoint (newer devices)
+            measurements = await self.client.get_measurements_direct()
+            _LOGGER.debug("Successfully fetched direct measurements: %s", measurements)
             return measurements
         except WaterCrystConnectionError as err:
             _LOGGER.error("Error communicating with WaterCryst API (measurements): %s", err)

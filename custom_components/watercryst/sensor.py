@@ -187,7 +187,7 @@ class WaterCrystLastTapVolumeSensor(WaterCrystSensorEntity):
         self._attr_icon = ICON_CONSUMPTION
         self._attr_device_class = SensorDeviceClass.VOLUME
         self._attr_native_unit_of_measurement = UnitOfVolume.LITERS
-        self._attr_state_class = SensorStateClass.MEASUREMENT
+        # No state class for instantaneous volume measurements
 
     @property
     def native_value(self) -> Optional[float]:

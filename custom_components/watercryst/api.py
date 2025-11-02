@@ -66,6 +66,16 @@ class WaterCrystClient:
         try:
             async with session.get(url, params=params, headers=headers) as response:
                 if response.status == 200:
+                    # Check if response has content
+                    content_length = response.headers.get('content-length', '0')
+                    if content_length == '0' or not response.content_length:
+                        raise WaterCrystAPIError(f"API endpoint {endpoint} returned empty response")
+                    
+                    content_type = response.headers.get('content-type', '')
+                    if 'application/json' not in content_type:
+                        text = await response.text()
+                        raise WaterCrystAPIError(f"API endpoint {endpoint} returned non-JSON response: {text}")
+                    
                     return await response.json()
                 elif response.status == 401:
                     raise WaterCrystAuthenticationError("Invalid API key")
@@ -76,7 +86,39 @@ class WaterCrystClient:
                 elif response.status == 400:
                     raise WaterCrystAPIError("Operation not supported")
                 else:
-                    raise WaterCrystAPIError(f"API request failed with status {response.status}")
+                    text = await response.text()
+                    raise WaterCrystAPIError(f"API request failed with status {response.status}: {text}")
+        except ClientError as err:
+            raise WaterCrystConnectionError(f"Connection error: {err}") from err
+
+    async def _request_raw(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Union[str, float]:
+        """Make a request to the WaterCryst API expecting raw text/number response."""
+        session = await self._get_session()
+        url = f"{API_BASE_URL}/{endpoint.lstrip('/')}"
+        
+        # Always include the API key header, even when using an external session
+        headers = {"X-API-KEY": self._api_key}
+        
+        try:
+            async with session.get(url, params=params, headers=headers) as response:
+                if response.status == 200:
+                    text = await response.text()
+                    # Try to convert to float if it's a number
+                    try:
+                        return float(text.strip())
+                    except ValueError:
+                        return text.strip()
+                elif response.status == 401:
+                    raise WaterCrystAuthenticationError("Invalid API key")
+                elif response.status == 403:
+                    raise WaterCrystAPIError("API endpoint is disabled")
+                elif response.status == 429:
+                    raise WaterCrystRateLimitError("API rate limit exceeded")
+                elif response.status == 400:
+                    raise WaterCrystAPIError("Operation not supported")
+                else:
+                    text = await response.text()
+                    raise WaterCrystAPIError(f"API request failed with status {response.status}: {text}")
         except ClientError as err:
             raise WaterCrystConnectionError(f"Connection error: {err}") from err
 
@@ -104,13 +146,13 @@ class WaterCrystClient:
 
     async def get_daily_consumption(self) -> float:
         """Get total water consumption today in liters."""
-        result = await self._request("statistics/cumulative/daily")
-        return float(result) if isinstance(result, (int, float)) else 0.0
+        result = await self._request_raw("statistics/cumulative/daily")
+        return float(result) if isinstance(result, (int, float, str)) else 0.0
 
     async def get_total_consumption(self) -> float:
         """Get total water consumption since installation in liters."""
-        result = await self._request("statistics/cumulative/total")
-        return float(result) if isinstance(result, (int, float)) else 0.0
+        result = await self._request_raw("statistics/cumulative/total")
+        return float(result) if isinstance(result, (int, float, str)) else 0.0
 
     # Absence mode
     async def enable_absence_mode(self) -> Dict[str, Any]:
