@@ -60,8 +60,11 @@ class WaterCrystClient:
         session = await self._get_session()
         url = f"{API_BASE_URL}/{endpoint.lstrip('/')}"
         
+        # Always include the API key header, even when using an external session
+        headers = {"X-API-KEY": self._api_key}
+        
         try:
-            async with session.get(url, params=params) as response:
+            async with session.get(url, params=params, headers=headers) as response:
                 if response.status == 200:
                     return await response.json()
                 elif response.status == 401:
