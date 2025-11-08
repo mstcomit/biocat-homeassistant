@@ -56,7 +56,7 @@ class WaterCrystClient:
         if self._session and self._close_session:
             await self._session.close()
 
-    async def _request(self, endpoint: str, params: Optional[Dict[str, Any]] = None, max_retries: int = 3) -> Dict[str, Any]:
+    async def _request(self, endpoint: str, params: Optional[Dict[str, Any]] = None, max_retries: int = 3, allow_empty: bool = False) -> Dict[str, Any]:
         """Make a request to the WaterCryst API with retry logic for empty responses."""
         session = await self._get_session()
         url = f"{API_BASE_URL}/{endpoint.lstrip('/')}"
@@ -85,6 +85,10 @@ class WaterCrystClient:
                         
                         # Check if response is truly empty
                         if not text or text.strip() == "":
+                            if allow_empty:
+                                _LOGGER.warning("API endpoint %s returned empty response but empty responses are allowed", endpoint)
+                                return {}
+                            
                             error_msg = f"API endpoint {endpoint} returned empty response (attempt {attempt + 1}/{max_retries})"
                             if attempt < max_retries - 1:
                                 _LOGGER.warning("%s - retrying in 2 seconds", error_msg)
@@ -251,6 +255,19 @@ class WaterCrystClient:
     async def get_state(self) -> Dict[str, Any]:
         """Get the current device state."""
         return await self._request("state")
+
+    async def test_connectivity(self) -> bool:
+        """Test API connectivity, allowing empty responses for validation purposes."""
+        try:
+            # Try to get state, but allow empty responses
+            await self._request("state", allow_empty=True)
+            return True
+        except WaterCrystAuthenticationError:
+            # Re-raise authentication errors
+            raise
+        except Exception:
+            # All other errors indicate connectivity issues
+            return False
 
     async def get_measurements_direct(self) -> Dict[str, Any]:
         """Get current measurement data directly."""

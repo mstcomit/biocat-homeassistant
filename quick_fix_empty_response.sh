@@ -1,30 +1,24 @@
-"""Config flow for WaterCryst BIOCAT integration."""
-from __future__ import annotations
+#!/bin/bash
 
-import logging
-from typing import Any, Dict, Optional
+# Quick fix script for WaterCryst empty response issue
+# This script applies a patch to make the Home Assistant config flow more tolerant
 
-import voluptuous as vol
-from homeassistant import config_entries
-from homeassistant.const import CONF_NAME
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+echo "Applying quick fix for WaterCryst empty response issue..."
 
-from .api import WaterCrystClient, WaterCrystAuthenticationError, WaterCrystConnectionError
-from .const import CONF_API_KEY, CONF_DEVICE_NAME, DOMAIN
+CONFIG_FLOW_FILE="/config/custom_components/watercryst/config_flow.py"
 
-_LOGGER = logging.getLogger(__name__)
+if [[ ! -f "$CONFIG_FLOW_FILE" ]]; then
+    echo "Error: $CONFIG_FLOW_FILE not found!"
+    echo "Make sure the WaterCryst integration is installed in your Home Assistant."
+    exit 1
+fi
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_API_KEY): str,
-        vol.Required(CONF_DEVICE_NAME, default="BIOCAT"): str,
-    }
-)
+# Create backup
+cp "$CONFIG_FLOW_FILE" "${CONFIG_FLOW_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+echo "Created backup: ${CONFIG_FLOW_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
 
-
+# Apply the patch
+cat > /tmp/config_flow_patch.py << 'EOF'
 async def validate_input(hass: HomeAssistant, data: Dict[str, Any]) -> Dict[str, Any]:
     """Validate the user input allows us to connect.
 
@@ -102,49 +96,47 @@ async def validate_input(hass: HomeAssistant, data: Dict[str, Any]) -> Dict[str,
         raise CannotConnect from err
     finally:
         await client.close()
+EOF
 
+# Extract the function from current file and replace it
+python3 << 'EOF'
+import re
+import sys
 
-class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for WaterCryst BIOCAT."""
+# Read the current file
+with open('/config/custom_components/watercryst/config_flow.py', 'r') as f:
+    content = f.read()
 
-    VERSION = 1
+# Read the new function
+with open('/tmp/config_flow_patch.py', 'r') as f:
+    new_function = f.read()
 
-    async def async_step_user(
-        self, user_input: Optional[Dict[str, Any]] = None
-    ) -> FlowResult:
-        """Handle the initial step."""
-        if user_input is None:
-            return self.async_show_form(
-                step_id="user", data_schema=STEP_USER_DATA_SCHEMA
-            )
+# Replace the validate_input function
+pattern = r'async def validate_input\(.*?\n    finally:\n        await client\.close\(\)'
+new_content = re.sub(pattern, new_function.strip(), content, flags=re.DOTALL)
 
-        errors = {}
+# Write back the file
+with open('/config/custom_components/watercryst/config_flow.py', 'w') as f:
+    f.write(new_content)
 
-        try:
-            info = await validate_input(self.hass, user_input)
-        except CannotConnect:
-            errors["base"] = "cannot_connect"
-        except InvalidAuth:
-            errors["base"] = "invalid_auth"
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Unexpected exception")
-            errors["base"] = "unknown"
-        else:
-            # Create a unique ID based on the API key (hashed for privacy)
-            unique_id = user_input[CONF_API_KEY][:8] + "..." + user_input[CONF_API_KEY][-8:]
-            await self.async_set_unique_id(unique_id)
-            self._abort_if_unique_id_configured()
+print("Config flow patched successfully!")
+EOF
 
-            return self.async_create_entry(title=info["title"], data=user_input)
+if [[ $? -eq 0 ]]; then
+    echo "✅ Quick fix applied successfully!"
+    echo ""
+    echo "Next steps:"
+    echo "1. Restart Home Assistant"
+    echo "2. Try adding the WaterCryst integration again"
+    echo "3. If you still have issues, run: python3 troubleshoot_empty_responses.py <YOUR_API_KEY>"
+    echo ""
+    echo "The fix makes the integration more tolerant of empty API responses during setup."
+    echo "This should allow you to complete the configuration even if some endpoints"
+    echo "are temporarily unavailable or returning empty responses."
+else
+    echo "❌ Failed to apply quick fix!"
+    echo "You may need to manually edit the config_flow.py file."
+fi
 
-        return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
-        )
-
-
-class CannotConnect(HomeAssistantError):
-    """Error to indicate we cannot connect."""
-
-
-class InvalidAuth(HomeAssistantError):
-    """Error to indicate there is invalid auth."""
+# Clean up
+rm -f /tmp/config_flow_patch.py
