@@ -1,0 +1,770 @@
+openapi: 3.1.0
+servers:
+  - url: https://appapi.watercryst.com/v1
+    description: Default server
+info:
+  title: myBIOCAT REST-API
+  description: |-
+    WATERCryst myBIOCAT REST-API
+
+    # Introduction
+
+    With the REST-API interface you can integrate your BIOCAT system into your SmartHome, into your building management system or into other systems.
+
+    Via this interface you have the possibility to query the device status and to execute various actions.
+
+    For BIOCAT leakage protection devices, the absence mode can also be activated or deactivated via API. Furthermore, it is possible to shut off the water supply.
+
+    Information in the event of malfunctions can be sent automatically to an external system. This is done by means of a "CallBack URL". The errors can also be acknowledged via this interface.
+
+    # Specification
+
+    The myBIOCAT REST API is based on OpenAPI 3.0. The YAML file provided <a href="/api-v1.yaml">here</a> can be imported into an API interface development environment, e.g. Postman, to test the commands.
+
+    The calls must be made using a "GET" command (HTTP method). These calls must include the URL of the API server, the version of the REST API, the command, and optionally passing parameters. The authentication key must be named "X-API-KEY" and must be included in the header of the call.
+
+    There are three types of calls:
+
+    * Calls without passing parameters.
+
+        * e.g. activating the absence mode
+
+    * Calls with passing parameters
+
+        * e.g. pausing leakage detection
+
+    * Calls with response via callback URL
+
+        * e.g. querying the current live values
+
+
+
+    The response to the queries is always in JSON format.
+
+
+
+    The callback URL should be secured via HTTPS. Such a URL can look like this:
+
+    `https://my.server.com/myCallbackScript`
+
+    If it is desired to secure the callback URL with an API key, this can be specified as a query parameter in the callback URL:
+
+    `https://my.server.com/myCallbackScript?api_key=MY_KEY_HERE`
+
+
+    _**Note:** You can find the field for the callback URL by logging in to your account at **https://app.watercryst.com/**, go to the detail view of the device, open the **REST API** tab and click on **Add**._
+
+    For security reasons, the requests to the API interface are limited. A maximum of 10 requests per second per customer and device are accepted. In addition, no more than 200 requests may take place within 15 minutes. If these limits are exceeded, then the requests will not be processed and the response will be error code 429.
+
+
+
+    The most common response codes are listed below:
+
+    * 200 - message sent successfully
+
+    * 400 - Request not supported
+
+    * 401 - Wrong or missing API key
+
+    * 403 - myBIOCAT endpoint is disabled
+
+    * 429 - Too many requests within a time window
+
+  x-logo:
+    url: logo.svg
+    backgroundColor: "#FFFFFF"
+    altText: WATERCryst logo
+  termsOfService: https://www.watercryst.com/de/agb.html
+  contact:
+    name: WATERCryst Wassertechnik GmbH
+    url: https://www.watercryst.com/de/impressum.html
+    email: appservice@watercryst.com
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: v1
+security:
+  - API Key: []
+tags:
+  - name: Absence
+    description: Enable and disable absence mode.
+  - name: AckEvent
+    description: Acknowlege the current device event
+  - name: Leakage Protection
+    description: Pause and unpause leakage protection.
+  - name: Microleakage Measurement
+    description: Starts the manual micro-leakage measurement.
+  - name: Measurements
+    description: Query measurement data
+  - name: Self Test
+    description: BIOCAT device self test
+  - name: State
+    description: Query the current device state.
+  - name: Statistics
+    description: Query water consumption statistics
+  - name: Water Supply
+    description: Open and close the water supply of the BIOCAT device
+  - name: Webhooks
+    description: Receive messages from your device
+paths:
+  /absence/enable:
+    get:
+      tags:
+        - Absence
+      summary: Enable absence mode
+      description: |-
+        Enables absence mode and raises leakage detector sensitivity.
+
+        Absence mode will be reported via the webhook endpoint.
+        Additionally it can be queried at any time with `GET v1/state`.
+        If this operation was successful, `waterProtection.absenceModeEnabled = true`.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /absence/disable:
+    get:
+      tags:
+        - Absence
+      summary: Disable absence mode
+      description: |-
+        Disables absence mode and reverts leakage detector sensitivity to
+        its default level.
+
+        Absence mode will be reported via the webhook endpoint.
+        Additionally it can be queried at any time with `GET v1/state`.
+        If this operation was successful, `waterProtection.absenceModeEnabled = false`.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong API-Key.
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /ackevent:
+    get:
+      tags:
+        - AckEvent
+      summary: Acknowlege the current device event
+      description: Acknowleges the current device warning or error.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /leakageprotection/pause:
+    get:
+      tags:
+        - Leakage Protection
+      summary: Pause leakage protection
+      description: |-
+        Enables absence mode and raises leakage detector sensitivity.
+
+        Leakage protection pause will be reported via the webhook endpoint.
+        Additionally it can be queried at any time with `GET v1/state`.
+        If this operation was successful, `waterProtection.pauseLeakageProtectionUntilUTC` 
+        will be the UTC date `minutes` in the future.
+      parameters:
+        - name: minutes
+          in: query
+          description: How many minutes to pause leakage protection.
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4320
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /leakageprotection/unpause:
+    get:
+      tags:
+        - Leakage Protection
+      summary: Unpause leakage protection
+      description: |-
+        Disables absence mode and reverts leakage detector sensitivity to
+        its default level.
+
+        Leakage protection unpause will be reported via the webhook endpoint.
+        Additionally it can be queried at any time with `GET v1/state`.
+        If this operation was successful, `waterProtection.pauseLeakageProtectionUntilUTC` 
+        will be a UTC date in the past.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong API-Key.
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /mlmeasurement/start:
+    get:
+      tags:
+        - Microleakage Measurement
+      summary: Start micro-leakage measurement
+      description: |-
+        Starts the micro-leakage measurement to check the leak- tightness of the
+        piping. This allows the detection of micro- leaks such as dripping taps
+        or pipe fittings. For this measurements, water supply is briefly shut
+        off.
+
+        An unexpected water consumption during the measuring process, e.g. flushing the toilet or opening a tap, is automatically detected and the water supply is restored within a few seconds.
+
+        However, the test fails and the API call has to be repeated.
+
+        ### Notice
+
+        If you use a drip irrigation system in your household, this can be detected as a micro leak.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /measurements/now:
+    get:
+      tags:
+        - Measurements
+      summary: Load current measurement data (Legacy)
+      description: |-
+        Triggers a command to fetch current measurement data from 
+        the device.
+
+        On arrival, the data will be forwareded to your webhook 
+        endpoint as a `MeasurementResponse`.
+
+        **See <a href="/#get-/measurements/direct">/measurements/direct</a> 
+        for KLS-C and KS-C devices with a firmware version of v01.03.01 and above
+        and for LS-C devices with a firmware version of v01.00.08 and above.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /measurements/direct:
+    get:
+      tags:
+        - Measurements
+      summary: Load current measurement data
+      description: |-
+        Triggers a command to fetch current measurement data from 
+        the device.
+   
+        Measurement data will be returned immediatly in the HTTP 
+        response body as a `MeasurementResponse`.
+
+        **See <a href="/#get-/measurements/now">/measurements/now</a> 
+        for KLS-C and KS-C devices with a firmware version below v01.03.01
+        and for LS-C devices with a firmware version below v01.00.08.**
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementResponse"
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /selftest:
+    get:
+      tags:
+        - Self Test
+      summary: Start self test
+      description: |-
+        Starts the self test routine. Automatically checks all actuators and
+        sensors and fills the active unit with drinking water over a defined
+        flushing time.
+
+        Requires 2 minutes for completion.
+
+        The device will return to water treatment if no errors could be detected.
+        In the case of errors, the current error will be reported via the webhook endpoint.
+        Additionally it can be queried at any time with `GET v1/state`.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /state:
+    get:
+      tags:
+        - State
+      summary: Query the current device state
+      description: |-
+        Returns the current state of the device.
+
+        The `event` property may be `{}` if there is no current event.
+
+        The `waterProtection` property may be `{}` if the device does not provide water protection.
+
+        ### Modes
+
+        The `mode` property designates the device's current mode of operation.
+
+         | ID | Mode Name            | Remarks                    |
+         |:--:|----------------------|----------------------------|
+         | SU | Start Up             |                            |
+         | RS | Rinse                | After finishing the TD, the hot water is rinsed out of the cartridge via the flushing line. The multi-chamber valve moves to the backflush position. Cold water flows into the cartridge and removes the hot water, which reaches the drain via the flushing line. As soon as the cartridge has cooled down, the flushing (RS) stops and the unit returns to normal operation (WT or ST). |
+         | ST | Self Test            | Automatically checks all actuators and sensors and fills the active unit with drinking water over a defined flushing time. |
+         | UD | Firmware Update      |                            |
+         | FS | Failsafe             |                            |
+         | ER | Error Mode           | In the event of an error, the device will resort to error mode. |
+         | WO | Water Off            | The device is disconnected from the water supply. |
+         | WT | Water Treatment      | Default mode of operation. During the WT, water flows through the limescale protection active unit (cartridge), and drinking water temperature monitoring takes place at the same time. |
+         | TD | Thermal Disinfection | Thermal disinfection prevents contamination of the BIOCAT limescale protection device (microbiological intrinsic safety). |
+      
+        ### Microleakage measurement state
+
+        The `mlState` property designates the state of the current/last microleakage measurement.
+
+         | ID                     | Remarks                    |
+         |------------------------|----------------------------|
+         | idle                   |                            |
+         | running                | There is an active measurement. |
+         | success                | No leakage detected.       | 
+         | leakage                | Leakage detected.          |
+         | cancelled              | Measurement cancelled.     |
+         | failure-pressure-drop  | During measurement pressure dropped unexpectedly (e.g. toilet flush). |
+         | failure-water-tap      | During measurement a water tap was opened. |
+         | failure-start-pressure | Water pressure at the beginning of the measurement is to low. |
+         | failure-unknown        |
+
+      responses:
+        "200":
+          description: The current device state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StateResponse"
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /statistics/daily:
+    get:
+      tags:
+        - Statistics
+      summary: Load daily statistics (Legacy)
+      description: |-
+        Triggers a command to fetch daily statistics data from the device.
+
+        On arrival, the data will be forwareded to your webhook endpoint as a `StatisticsResponse`.
+
+        **See <a href="/#get-/statistics/daily/direct">/statistics/daily/direct</a> 
+        for KLS-C and KS-C devices with a firmware version of v01.03.01 and above
+        and for LS-C devices with a firmware version of v01.00.08 and above.**
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /statistics/daily/direct:
+    get:
+      tags:
+        - Statistics
+      summary: Load daily statistics
+      description: |-
+        Triggers a command to fetch daily statistics data from the device.
+
+        Statistics data will be returned immediatly in the HTTP 
+        response body as a `StatisticsResponse`.
+
+        **See <a href="/#get-/statistics/daily">/statistics/daily</a> 
+        for KLS-C and KS-C devices with a firmware version below v01.03.01
+        and for LS-C devices with a firmware version below v01.00.08.**
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatisticsResponse"
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /statistics/cumulative/daily:
+    get:
+      tags:
+        - Statistics
+      summary: Total water consumption today
+      description: |-
+        Fetches the total water consumption today in [L].
+
+        **KLS-C and KS-C devices need a firmware version of v01.03.01 and above.
+        LS-C devices need a firmware version of v01.00.08 and above.**
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: number
+                example: 111.56
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /statistics/cumulative/total:
+    get:
+      tags:
+        - Statistics
+      summary: Total water consumption
+      description: |-
+        Fetches the total water consumption since the device was installed in [L].
+
+        **KLS-C and KS-C devices need a firmware version of v01.03.01 and above.
+        LS-C devices need a firmware version of v01.00.08 and above.**
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: number
+                example: 40342.54
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /watersupply/open:
+    get:
+      tags:
+        - Water Supply
+      summary: Open water supply
+      description: |-
+        Connects the device with water supply. Will confirm pending
+        warnings and errors.
+                
+        Water supply will be reported via the webhook endpoint.
+        Additionally it can be queried at any time with `GET v1/state`.
+        If this operation was successful, `mode.id` will be anything but `WO`.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong or missing API-Key
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+  /watersupply/close:
+    get:
+      tags:
+        - Water Supply
+      summary: Shut off water supply
+      description: |-
+        Disconnects the device from the water supply.
+        
+        Water supply will be reported via the webhook endpoint.
+        Additionally it can be queried at any time with `GET v1/state`.
+        If shut off was successful, `mode.id` will be `WO`.
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Operation not supported
+        "401":
+          description: Wrong API-Key.
+        "403":
+          description: Endpoint is disabled
+        "429":
+          description: API calls quota exceeded
+webhooks:
+  event:
+    post:
+      summary: Receive messages
+      description: Receive events and PDOs
+      tags:
+        - Webhooks
+      responses:
+        "200":
+          description: The current device state.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/EventResponse"
+                  - $ref: "#/components/schemas/MeasurementResponse"
+                  - $ref: "#/components/schemas/MessageResponse"
+                  - $ref: "#/components/schemas/StatisticsResponse"
+components:
+  schemas:
+    EventResponse:
+      type: object
+      description: Represents an event
+      properties:
+        type:
+          description: Denotes the type of the response
+          type: string
+        eventId:
+          description: Identifies the type of the event
+          type: integer
+          format: int32
+        category:
+          description: The event category
+          type: string
+          enum:
+            - error
+            - warning
+            - info
+        title:
+          description: Event summary
+          type: string
+        description:
+          description: Detailed description
+          type: string
+        timestamp:
+          description: ISO 8601 compatible UTC date time string
+          type: string
+          format: date-time
+      example:
+        type: event
+        eventId: 10
+        category: warning
+        title: 10 -- granulate change is due
+        description: The granulate has expired and must be replaced. Only then the correct functioning is ensured.
+        timestamp: "2021-04-01T13:25:00"
+    MeasurementResponse:
+      type: object
+      description: Represents a measurement
+      properties:
+        type:
+          description: Denotes the type of the response
+          type: string
+        waterTemp:
+          description: Water temperature in degree celsius [°C]
+          type: integer
+          format: int32
+        pressure:
+          description: Pressure in [bar]
+          type: number
+        flowRate:
+          description: Flow rate in liters per minute [L/min]
+          type: number
+        lastWaterTapVolume:
+          description: Volume of the last water tapping in liters [L]
+          type: number
+        lastWaterTapDuration:
+          description: Duration of the last water tapping in seconds [sec]
+          type: number
+      example:
+        type: measurement
+        waterTemp: 24
+        pressure: 3.56
+        flowRate: 2.33
+        waterTapVolume: 6.03
+        waterTapDuration: 114
+    MessageResponse:
+      type: object
+      description: Represents a message
+      properties:
+        type:
+          description: Denotes the type of the response
+          type: string
+        absenceModeEnabled:
+          description: Indicates the state of the absence mode
+          type: boolean
+        pauseLeakageProtectionUntilUTC:
+          description: ISO 8601 compatible UTC date time string when the leakage
+            protection will be active again
+          type: string
+          format: date-time
+      example:
+        type: pdo
+        absenceModeEnabled: true
+        pauseLeakageProtectionUntilUTC: "2021-04-01T13:25:00"
+    ModeResponse:
+      type: object
+      description: Represents the current mode of operation
+      properties:
+        id:
+          description: Mode identifier
+          type: string
+          enum:
+            - RS
+            - ST
+            - UD
+            - FS
+            - ER
+            - WO
+            - MC
+            - WT
+            - TD
+        name:
+          description: Mode display name
+          type: string
+      example:
+        id: WT
+        name: Water Treatment
+    WaterProtectionResponse:
+      type: object
+      description: Represents the current state of the water protection subsystem
+      properties:
+        absenceModeEnabled:
+          description: Indicates the state of the absence mode
+          type: boolean
+        pauseLeakageProtectionUntilUTC:
+          description: ISO 8601 compatible UTC date time string when the leakage
+            protection will be active again
+          type: string
+          format: date-time
+      example:
+        absenceModeEnabled: true
+        pauseLeakageProtectionUntilUTC: "2021-04-01T13:25:00"
+    StateResponse:
+      type: object
+      description: Represents the current device state
+      properties:
+        online:
+          description: Indicates whether the device is online or offline right now
+          type: boolean
+        mode:
+          $ref: "#/components/schemas/ModeResponse"
+        event:
+          $ref: "#/components/schemas/EventResponse"
+        waterProtection:
+          $ref: "#/components/schemas/WaterProtectionResponse"
+        mlState:
+          description: The state of the current/last microleakage measurement
+          type: string
+          enum: 
+            - idle
+            - running
+            - success
+            - leakage
+            - cancelled
+            - failure-pressure-drop	
+            - failure-water-tap	
+            - failure-start-pressure
+            - failure-unknown
+      example:
+        online: true
+        mode:
+          id: WT
+          name: Water Treatment
+        event:
+          eventId: 10
+          category: warning
+          title: 10 -- granulate change is due
+          description: The granulate has expired and must be replaced. Only then the correct functioning is ensured.
+          timestamp: "2021-04-01T13:25:00"
+        waterProtection:
+          absenceModeEnabled: true
+          pauseLeakageProtectionUntilUTC: "2021-04-01T13:25:00"
+        mlState: "success"
+    StatisticsResponse:
+      type: object
+      description: Represents a list of consumption statistics data points
+      properties:
+        type:
+          description: Denotes the type of the response
+          type: string
+        entries:
+          description: List of data points.
+          type: array
+          items:
+            $ref: "#/components/schemas/StatisticsResponseEntry"
+      example:
+        type: statistics
+        entries:
+          - consumption: 113.45
+            date: "2021-04-01T13:25:00"
+          - consumption: 63.98
+            date: "2021-04-02T13:25:00"
+    StatisticsResponseEntry:
+      type: object
+      description: A consumption statistics data point
+      properties:
+        consumption:
+          description: Water consumption for this day in liters [L].
+          type: number
+        date:
+          description: ISO 8601 compatible UTC date time string.
+          type: string
+          format: date-time
+      example:
+        consumption: 113.45
+        date: "2021-04-01T13:25:00"
+
+  securitySchemes:
+    API Key:
+      description: API key to authorize requests
+      type: apiKey
+      in: header
+      name: X-API-KEY
