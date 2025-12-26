@@ -247,7 +247,7 @@ class WaterCrystTotalConsumptionSensor(WaterCrystSensorEntity):
         super().__init__(coordinator, device_name, "total_consumption")
         self._attr_name = f"{device_name} Total Consumption"
         self._attr_icon = ICON_CONSUMPTION
-        self._attr_device_class = SensorDeviceClass.VOLUME
+        self._attr_device_class = SensorDeviceClass.WATER
         self._attr_native_unit_of_measurement = UnitOfVolume.LITERS
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
 
