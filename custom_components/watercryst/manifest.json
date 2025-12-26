@@ -8,8 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/mstcomit/biocat-homeassistant/issues",
   "requirements": ["aiohttp>=3.8.0"],
-  "version": "0.2.1",
-  "integration_type": "service",
-  "logo": "images/icon.png",
-  "homekit": {}
+  "version": "0.2.1"
 }
